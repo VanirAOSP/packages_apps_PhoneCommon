@@ -50,39 +50,38 @@ public abstract class AmbientDataSubscription<M> {
     // Holder for plugin object
     private HashMap<ComponentName, M> mPluginInfo;
 
-    private static boolean mDataHasBeenBroadcastPreviously = false;
+    private boolean mDataHasBeenBroadcastPreviously = false;
 
     // A list of our registered clients, who all register with the CallMethodReceiver
-    private static HashMap<String, PluginChanged> mRegisteredClients = new HashMap<>();
+    private final HashMap<String, PluginChanged> mRegisteredClients = new HashMap<>();
 
     // A map of our components and if they have have enabled IInterface listeners. This is to keep
     // track of if listeners should be added or removed.
-    private static HashMap<ComponentName, Boolean> mEnabledListeners = new HashMap<>();
+    private final HashMap<ComponentName, Boolean> mEnabledListeners = new HashMap<>();
 
     // Wait up to 60 seconds for data to return. Mimicks what PluginBinderManager does.
     private static final long TIMEOUT_MILLISECONDS = 60000L;
 
     // Bootstrap is the initial callback to get your installed plugins.
     // this is the only item that executes ASAP and has no componentname tied to it
-    public ResultCallback BOOTSTRAP = new ResultCallback<Result>() {
+    public final ResultCallback BOOTSTRAP = new ResultCallback<Result>() {
 
         @Override
         public void onResult(Result result) {
             List<ComponentName> installedPlugins = getPluginComponents(result);
-            if (installedPlugins.size() != 0) {
+            if (installedPlugins.isEmpty()) {
+                // We want to tell our subscribers that we have no plugins to worry about
+                broadcast();
+                mDataHasBeenBroadcastPreviously = true;
+            } else {
                 for (ComponentName cn : installedPlugins) {
                     ArrayList<TypedPendingResult> apiCallbacks = new ArrayList<>();
                     getPluginInfo().put(cn, getNewModObject(cn));
                     requestedModInfo(apiCallbacks, cn);
                     executeAll(apiCallbacks, cn);
                 }
-            } else {
-                // We want to tell our subscribers that we have no plugins to worry about
-                broadcast();
-                mDataHasBeenBroadcastPreviously = true;
             }
         }
-
     };
 
     public AmbientDataSubscription(Context context) {
@@ -281,7 +280,7 @@ public abstract class AmbientDataSubscription<M> {
         onRefreshRequested();
     }
 
-    public static boolean infoReady() {
+    public boolean infoReady() {
         return mDataHasBeenBroadcastPreviously;
     }
 
